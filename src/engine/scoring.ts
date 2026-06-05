@@ -10,8 +10,7 @@ import type {
   WorkStyle,
 } from './types'
 import { dimensionLabels } from '../data/careers'
-
-const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
+import { clamp, unique } from '../utils/helpers'
 
 const average = (values: number[]) =>
   values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length
@@ -43,8 +42,6 @@ const normalizeText = (value: string) => {
   normalizeTextCache.set(value, normalized)
   return normalized
 }
-
-const unique = <T,>(items: T[]) => Array.from(new Set(items))
 
 const compact = (items: Array<string | undefined | null>) =>
   unique(

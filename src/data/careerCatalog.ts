@@ -13,6 +13,7 @@ import type {
   SkillIntelligence,
   WorkStyle,
 } from '../engine/types'
+import { clamp, unique } from '../utils/helpers'
 
 type DimensionVector = Partial<DimensionScores>
 
@@ -68,10 +69,6 @@ const dimensionKeys: DimensionKey[] = [
   'riskTolerance',
   'motivation',
 ]
-
-const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
-
-const unique = <T,>(items: T[]) => Array.from(new Set(items))
 
 const mergeWorkStyles = (...groups: WorkStyle[][]) =>
   unique(groups.flat()).slice(0, 3) as WorkStyle[]
