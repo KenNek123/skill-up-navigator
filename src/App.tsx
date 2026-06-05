@@ -31,7 +31,7 @@ import { rankCareers } from './engine/scoring'
 import type { DimensionKey, HumanProfile, StructuredCvEvidence, WorkStyle } from './engine/types'
 
 const dimensionOrder = Object.keys(dimensionLabels) as DimensionKey[]
-const DISPLAYED_CAREER_COUNT = 80
+const DISPLAYED_CAREER_COUNT = 5
 const AUDIT_ROW_COUNT = 120
 
 const workStyleOptions: Array<{ id: WorkStyle; vi: string; en: string }> = [
