@@ -22,7 +22,7 @@ import {
   UploadCloud,
   Users,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import './App.css'
 import { MetricPill } from './components/MetricPill'
 import { ScoreBar } from './components/ScoreBar'
@@ -155,7 +155,7 @@ const totalStructuredSignals = (evidence: StructuredCvEvidence) =>
 function App() {
   const [profile, setProfile] = useState<HumanProfile>(cloneProfile)
   const pathname = window.location.pathname
-  const ranked = useMemo(() => rankCareers(profile, careers), [profile])
+  const ranked = useMemo(() => rankCareers(profile, careers), [profile, careers])
 
   if (pathname === '/judge') {
     return <JudgePage profile={profile} />
@@ -543,7 +543,7 @@ function PreferenceSlider({
   )
 }
 
-function RecommendationPanel({
+const RecommendationPanel = memo(function RecommendationPanel({
   profile,
   ranked,
 }: {
