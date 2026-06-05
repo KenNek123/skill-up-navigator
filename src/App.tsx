@@ -647,27 +647,247 @@ const RecommendationPanel = memo(function RecommendationPanel({
         ))}
       </section>
 
-      <section className="next-plan" aria-labelledby="next-plan-title">
+      <section className="roadmap-section" aria-labelledby="roadmap-title">
         <div className="panel-heading panel-heading--small">
           <div>
-            <p className="eyebrow">Kế hoạch hành động</p>
-            <h2 id="next-plan-title">30 ngày tiếp theo</h2>
+            <p className="eyebrow">Lộ trình phát triển nghề nghiệp</p>
+            <h2 id="roadmap-title">Từ hôm nay đến 1 năm</h2>
           </div>
           <Map aria-hidden="true" size={20} />
         </div>
-        <div className="milestone-list">
-          {top.career.nextMilestones.map((milestone) => (
-            <p key={milestone}>
-              <ArrowRight aria-hidden="true" size={16} />
-              {milestone}
-            </p>
-          ))}
-        </div>
+
+        {top.career.intelligence && (
+          <div className="roadmap-timeline">
+            <div className="roadmap-phase">
+              <div className="roadmap-phase-header">
+                <strong>30 ngày đầu</strong>
+                <span>Tháng 1</span>
+              </div>
+              <div className="milestone-list">
+                {top.career.intelligence.roadmap.thirtyDays.map((milestone) => (
+                  <p key={milestone}>
+                    <ArrowRight aria-hidden="true" size={16} />
+                    {milestone}
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            <div className="roadmap-phase">
+              <div className="roadmap-phase-header">
+                <strong>60 ngày</strong>
+                <span>Tháng 2</span>
+              </div>
+              <div className="milestone-list">
+                {top.career.intelligence.roadmap.sixtyDays.map((milestone) => (
+                  <p key={milestone}>
+                    <ArrowRight aria-hidden="true" size={16} />
+                    {milestone}
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            <div className="roadmap-phase">
+              <div className="roadmap-phase-header">
+                <strong>90 ngày</strong>
+                <span>Tháng 3</span>
+              </div>
+              <div className="milestone-list">
+                {top.career.intelligence.roadmap.ninetyDays.map((milestone) => (
+                  <p key={milestone}>
+                    <ArrowRight aria-hidden="true" size={16} />
+                    {milestone}
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            <div className="roadmap-phase">
+              <div className="roadmap-phase-header">
+                <strong>6 tháng</strong>
+                <span>Nửa năm</span>
+              </div>
+              <div className="milestone-list">
+                {top.career.intelligence.roadmap.sixMonths.map((milestone) => (
+                  <p key={milestone}>
+                    <ArrowRight aria-hidden="true" size={16} />
+                    {milestone}
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            <div className="roadmap-phase">
+              <div className="roadmap-phase-header">
+                <strong>1 năm</strong>
+                <span>Năm đầu tiên</span>
+              </div>
+              <div className="milestone-list">
+                {top.career.intelligence.roadmap.oneYear.map((milestone) => (
+                  <p key={milestone}>
+                    <ArrowRight aria-hidden="true" size={16} />
+                    {milestone}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <p className="method-note">
           Kết quả được tính từ hồ sơ hiện tại của {profile.name}. Nếu thông tin đầu vào giống nhau,
           hệ thống sẽ tạo lại cùng một kết quả.
         </p>
       </section>
+
+      {top.career.intelligence && (
+        <>
+          <section className="education-section" aria-labelledby="education-title">
+            <div className="panel-heading panel-heading--small">
+              <div>
+                <p className="eyebrow">Con đường học tập</p>
+                <h2 id="education-title">Cách bắt đầu và phát triển</h2>
+              </div>
+              <Layers3 aria-hidden="true" size={20} />
+            </div>
+
+            <div className="education-grid">
+              <div className="education-track">
+                <h3>Bằng cấp chính thống</h3>
+                {top.career.intelligence.education.degrees.slice(0, 2).map((degree) => (
+                  <p key={degree}>{degree}</p>
+                ))}
+              </div>
+
+              <div className="education-track">
+                <h3>Lộ trình bootcamp</h3>
+                {top.career.intelligence.education.bootcamps.map((bootcamp) => (
+                  <p key={bootcamp}>{bootcamp}</p>
+                ))}
+              </div>
+
+              <div className="education-track">
+                <h3>Chứng chỉ nghề nghiệp</h3>
+                {top.career.intelligence.education.certifications.map((cert) => (
+                  <p key={cert}>{cert}</p>
+                ))}
+              </div>
+
+              <div className="education-track">
+                <h3>Tự học hiệu quả</h3>
+                {top.career.intelligence.education.selfTaughtPaths.map((path) => (
+                  <p key={path}>{path}</p>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="market-section" aria-labelledby="market-title">
+            <div className="panel-heading panel-heading--small">
+              <div>
+                <p className="eyebrow">Thị trường lao động</p>
+                <h2 id="market-title">Cơ hội và triển vọng</h2>
+              </div>
+              <LineChart aria-hidden="true" size={20} />
+            </div>
+
+            <div className="market-grid">
+              <div className="market-metric">
+                <strong>Nhu cầu hiện tại</strong>
+                <div className="market-bar">
+                  <span style={{ width: `${top.career.intelligence.laborMarket.currentDemand}%` }} />
+                </div>
+                <span>{top.career.intelligence.laborMarket.currentDemand}/100</span>
+              </div>
+
+              <div className="market-metric">
+                <strong>Nhu cầu tương lai</strong>
+                <div className="market-bar">
+                  <span style={{ width: `${top.career.intelligence.laborMarket.futureDemand}%` }} />
+                </div>
+                <span>{top.career.intelligence.laborMarket.futureDemand}/100</span>
+              </div>
+
+              <div className="market-metric">
+                <strong>Thiếu hụt nhân tài</strong>
+                <div className="market-bar market-bar--talent">
+                  <span style={{ width: `${top.career.intelligence.laborMarket.talentShortage}%` }} />
+                </div>
+                <span>{top.career.intelligence.laborMarket.talentShortage}/100</span>
+              </div>
+
+              <div className="market-metric">
+                <strong>Tốc độ tăng trưởng</strong>
+                <div className="market-bar market-bar--growth">
+                  <span style={{ width: `${top.career.intelligence.laborMarket.growthRate}%` }} />
+                </div>
+                <span>{top.career.intelligence.laborMarket.growthRate}/100</span>
+              </div>
+            </div>
+
+            <div className="opportunity-grid">
+              <div className="opportunity-card">
+                <GitBranch aria-hidden="true" size={18} />
+                <div>
+                  <strong>Remote</strong>
+                  <span>{top.career.intelligence.laborMarket.remoteOpportunities}/100</span>
+                </div>
+              </div>
+              <div className="opportunity-card">
+                <BriefcaseBusiness aria-hidden="true" size={18} />
+                <div>
+                  <strong>Startup</strong>
+                  <span>{top.career.intelligence.laborMarket.startupOpportunities}/100</span>
+                </div>
+              </div>
+              <div className="opportunity-card">
+                <Network aria-hidden="true" size={18} />
+                <div>
+                  <strong>Corporate</strong>
+                  <span>{top.career.intelligence.laborMarket.corporateOpportunities}/100</span>
+                </div>
+              </div>
+              <div className="opportunity-card">
+                <LockKeyhole aria-hidden="true" size={18} />
+                <div>
+                  <strong>Chính phủ</strong>
+                  <span>{top.career.intelligence.laborMarket.governmentOpportunities}/100</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="skills-section" aria-labelledby="skills-title">
+            <div className="panel-heading panel-heading--small">
+              <div>
+                <p className="eyebrow">Kỹ năng cần học</p>
+                <h2 id="skills-title">Lộ trình kỹ năng ưu tiên</h2>
+              </div>
+              <Target aria-hidden="true" size={20} />
+            </div>
+
+            <div className="skills-priority-list">
+              {top.career.intelligence.skills.slice(0, 6).map((skill, index) => (
+                <div className="skill-card" key={skill.name}>
+                  <div className="skill-rank">{index + 1}</div>
+                  <div className="skill-content">
+                    <div className="skill-header">
+                      <strong>{skill.name}</strong>
+                      <span className="skill-category">{skill.category}</span>
+                    </div>
+                    <div className="skill-metrics">
+                      <span>Độ quan trọng: {skill.importance}/100</span>
+                      <span>Nhu cầu: {skill.demand}/100</span>
+                      <span>Thời gian học: {skill.learningTimeWeeks} tuần</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </section>
   )
 })

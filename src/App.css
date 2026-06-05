@@ -710,10 +710,224 @@ input[type='range'] {
   gap: 6px;
 }
 
-.next-plan {
+.roadmap-section,
+.education-section,
+.market-section,
+.skills-section {
   margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid var(--line);
+}
+
+.roadmap-timeline {
+  display: grid;
+  gap: 14px;
+  margin: 14px 0;
+}
+
+.roadmap-phase {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.roadmap-phase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.roadmap-phase-header strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.roadmap-phase-header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.education-grid {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.education-track {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.education-track h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.education-track p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.market-grid {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.market-metric {
+  display: grid;
+  gap: 6px;
+}
+
+.market-metric strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.market-metric > span {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.market-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.market-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--blue);
+  transition: width 0.3s ease;
+}
+
+.market-bar--talent span {
+  background: var(--green);
+}
+
+.market-bar--growth span {
+  background: var(--amber);
+}
+
+.opportunity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.opportunity-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.opportunity-card svg {
+  flex: 0 0 auto;
+  color: var(--blue);
+}
+
+.opportunity-card div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.opportunity-card strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.opportunity-card span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.skills-priority-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.skill-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.skill-rank {
+  flex: 0 0 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.skill-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.skill-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.skill-header strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.skill-category {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.skill-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.skill-metrics span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .milestone-list {
