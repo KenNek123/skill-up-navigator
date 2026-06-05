@@ -670,7 +670,7 @@ const RecommendationPanel = memo(function RecommendationPanel({
       </section>
     </section>
   )
-}
+})
 
 function JudgePage({ profile }: { profile: HumanProfile }) {
   const ranked = rankCareers(profile, careers)
