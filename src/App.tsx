@@ -155,7 +155,7 @@ const totalStructuredSignals = (evidence: StructuredCvEvidence) =>
 function App() {
   const [profile, setProfile] = useState<HumanProfile>(cloneProfile)
   const pathname = window.location.pathname
-  const ranked = useMemo(() => rankCareers(profile, careers), [profile, careers])
+  const ranked = useMemo(() => rankCareers(profile, careers), [profile])
 
   if (pathname === '/judge') {
     return <JudgePage profile={profile} />
