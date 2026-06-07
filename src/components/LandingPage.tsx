@@ -1,14 +1,119 @@
 import { motion } from 'framer-motion'
-import { ArrowRight, CheckCircle2, Compass, Target, TrendingUp } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Compass, Target, TrendingUp, UploadCloud } from 'lucide-react'
+import { useState } from 'react'
 import { BrandLogo } from './ui/BrandLogo'
 import { CTAButton } from './ui/CTAButton'
 import { GlassCard } from './ui/GlassCard'
+import type { StructuredCvEvidence, DimensionKey, WorkStyle } from '../engine/types'
+
+type ParsedCvResponse = {
+  profile?: {
+    name?: string
+    headline?: string
+    dimensions?: Partial<Record<DimensionKey, number>>
+    preferences?: {
+      workStyles?: WorkStyle[]
+    }
+    evidence?: string[]
+    structuredEvidence?: StructuredCvEvidence
+  }
+  error?: string
+  model?: string
+}
 
 interface LandingPageProps {
   onStart: () => void
+  onCvParsed: (data: ParsedCvResponse['profile']) => void
 }
 
-export function LandingPage({ onStart }: LandingPageProps) {
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener('load', () => resolve(String(reader.result)))
+    reader.addEventListener('error', () => reject(new Error('Không đọc được file trên trình duyệt.')))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function parseCvResponse(response: Response) {
+  const text = await response.text()
+
+  if (!text.trim()) {
+    throw new Error(
+      'API chưa trả dữ liệu. Nếu đang chạy local, hãy dùng npx vercel dev thay vì npm run dev để bật /api/parse-cv.',
+    )
+  }
+
+  try {
+    return JSON.parse(text) as ParsedCvResponse
+  } catch {
+    throw new Error(
+      response.ok
+        ? 'API trả về dữ liệu không đúng định dạng JSON.'
+        : `API lỗi ${response.status}: ${text.slice(0, 160)}`,
+    )
+  }
+}
+
+function toFriendlyUploadError(message: string) {
+  if (message.toLowerCase().includes('high demand') || message.includes('503')) {
+    return 'Google Gemini đang quá tải tạm thời. Hãy thử lại sau vài phút hoặc đổi GEMINI_MODEL trong .env.local sang model khác.'
+  }
+
+  if (message.toLowerCase().includes('api key') || message.toLowerCase().includes('permission')) {
+    return 'API key chưa đúng hoặc chưa có quyền dùng Gemini API. Kiểm tra GOOGLE_API_KEY trong .env.local.'
+  }
+
+  if (message.toLowerCase().includes('not found') && message.toLowerCase().includes('model')) {
+    return 'Model Gemini hiện tại không dùng được. Hãy đổi GEMINI_MODEL trong .env.local, ví dụ gemini-2.0-flash.'
+  }
+
+  return message
+}
+
+export function LandingPage({ onStart, onCvParsed }: LandingPageProps) {
+  const [uploadState, setUploadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [uploadMessage, setUploadMessage] = useState('')
+
+  const handleCvUpload = async (file: File) => {
+    if (file.size > 4 * 1024 * 1024) {
+      setUploadState('error')
+      setUploadMessage('File quá lớn. Vui lòng dùng file dưới 4MB.')
+      return
+    }
+
+    setUploadState('loading')
+    setUploadMessage('Đang đọc CV bằng Gemini...')
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      const base64 = dataUrl.split(',')[1]
+      const result = await fetch('/api/parse-cv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type || 'text/plain',
+          data: base64,
+        }),
+      })
+      const parsed = await parseCvResponse(result)
+
+      if (!result.ok || !parsed.profile) {
+        throw new Error(toFriendlyUploadError(parsed.error ?? 'Không đọc được CV.'))
+      }
+
+      onCvParsed(parsed.profile)
+      setUploadState('success')
+      setUploadMessage('✓ Đã đọc CV thành công. Bắt đầu trả lời câu hỏi.')
+    } catch (error) {
+      setUploadState('error')
+      setUploadMessage(error instanceof Error ? error.message : 'Không đọc được CV.')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0e1a] bg-gradient-to-b from-[#0a0e1a] via-[#0f1420] to-[#0a0e1a]">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0e1a]/80 backdrop-blur-md border-b border-white/10">
@@ -66,7 +171,48 @@ export function LandingPage({ onStart }: LandingPageProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
+            className="space-y-4"
           >
+            <GlassCard className="p-6 max-w-md mx-auto">
+              <label className="flex items-center gap-4 cursor-pointer group">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-500/30 transition-colors">
+                  <UploadCloud className="w-6 h-6 text-cyan-400" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="text-white font-medium">Upload CV (tùy chọn)</div>
+                  <div className="text-sm text-white/60">
+                    Tự động trích xuất kinh nghiệm và kỹ năng
+                  </div>
+                </div>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  disabled={uploadState === 'loading'}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) {
+                      void handleCvUpload(file)
+                    }
+                    event.currentTarget.value = ''
+                  }}
+                  className="hidden"
+                />
+              </label>
+              {uploadMessage && (
+                <div
+                  className={`mt-3 text-sm ${
+                    uploadState === 'error'
+                      ? 'text-red-400'
+                      : uploadState === 'success'
+                        ? 'text-cyan-400'
+                        : 'text-white/60'
+                  }`}
+                >
+                  {uploadMessage}
+                </div>
+              )}
+            </GlassCard>
+
             <CTAButton onClick={onStart} variant="primary" size="lg">
               <Compass size={20} />
               Bắt đầu chuyến đi
