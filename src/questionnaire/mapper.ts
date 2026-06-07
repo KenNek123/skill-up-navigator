@@ -25,7 +25,7 @@ const averageOrBase = (values: number[], base: number) =>
 
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, value))
 
-export const mapAnswersToProfile = (answers: QuestionAnswer[], flow: 'A' | 'B'): Partial<HumanProfile> => {
+export const mapAnswersToProfile = (answers: QuestionAnswer[], flow: 'A' | 'B'): HumanProfile => {
   const dimensionAcc = initDimensionAccumulator()
   const workStyleSet = new Set<WorkStyle>()
   const preferenceSignals = {

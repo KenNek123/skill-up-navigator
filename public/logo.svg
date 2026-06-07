@@ -1,0 +1,51 @@
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22d3ee;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#14b8a6;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer compass ring -->
+  <circle cx="200" cy="200" r="150" stroke="url(#brandGradient)" stroke-width="3" fill="none" opacity="0.3"/>
+
+  <!-- Direction markers -->
+  <text x="200" y="80" font-family="Inter, sans-serif" font-size="24" font-weight="600" fill="url(#brandGradient)" text-anchor="middle">N</text>
+  <text x="320" y="210" font-family="Inter, sans-serif" font-size="24" font-weight="600" fill="url(#brandGradient)" text-anchor="middle">E</text>
+  <text x="200" y="330" font-family="Inter, sans-serif" font-size="24" font-weight="600" fill="url(#brandGradient)" text-anchor="middle">S</text>
+  <text x="80" y="210" font-family="Inter, sans-serif" font-size="24" font-weight="600" fill="url(#brandGradient)" text-anchor="middle">W</text>
+
+  <!-- Inner circle -->
+  <circle cx="200" cy="200" r="100" stroke="url(#brandGradient)" stroke-width="2" fill="none"/>
+
+  <!-- Center navigation pointer (arrow) -->
+  <path d="M 200 120 L 210 190 L 200 200 L 190 190 Z" fill="url(#brandGradient)" filter="url(#glow)"/>
+  <path d="M 200 200 L 220 240 L 200 260 L 180 240 Z" fill="url(#brandGradient)" opacity="0.5"/>
+
+  <!-- Career growth arrow -->
+  <path d="M 200 200 L 250 150 L 260 160 L 220 200 L 260 240 L 250 250 Z" stroke="url(#brandGradient)" stroke-width="3" fill="none"/>
+
+  <!-- Skill bars icon -->
+  <rect x="160" y="220" width="8" height="40" fill="url(#brandGradient)" opacity="0.6"/>
+  <rect x="175" y="210" width="8" height="50" fill="url(#brandGradient)" opacity="0.7"/>
+  <rect x="190" y="200" width="8" height="60" fill="url(#brandGradient)" opacity="0.8"/>
+
+  <!-- Tech icons (hexagons) -->
+  <circle cx="245" cy="180" r="8" fill="url(#brandGradient)" opacity="0.4"/>
+  <circle cx="270" cy="200" r="8" fill="url(#brandGradient)" opacity="0.4"/>
+  <circle cx="245" cy="220" r="8" fill="url(#brandGradient)" opacity="0.4"/>
+
+  <!-- Decorative dots -->
+  <circle cx="130" cy="160" r="3" fill="#22d3ee"/>
+  <circle cx="150" cy="145" r="2" fill="#14b8a6"/>
+  <circle cx="270" cy="160" r="3" fill="#22d3ee"/>
+  <circle cx="250" cy="145" r="2" fill="#14b8a6"/>
+</svg>
