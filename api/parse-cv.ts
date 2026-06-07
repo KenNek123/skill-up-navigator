@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { parseCvResponse } from '../src/cv-intelligence/cvParser'
+import { withRetry, createApiErrorResponse } from '../src/cv-intelligence/apiReliability'
 
 const localEnv = (() => {
   const envPath = join(process.cwd(), '.env.local')
@@ -42,6 +44,7 @@ const FALLBACK_MODELS = [
   'gemini-3.1-flash-lite-preview',
 ]
 const MAX_FILE_BYTES = 4 * 1024 * 1024
+const TIMEOUT_MS = 45000
 
 type GeminiPart = {
   text?: string
@@ -62,54 +65,14 @@ type GeminiResponse = {
   }
 }
 
-type ParsedProfile = {
-  name?: string
-  headline?: string
-  dimensions?: Partial<Record<string, number>>
-  preferences?: {
-    workStyles?: string[]
-  }
-  structuredEvidence?: {
-    education?: Array<{
-      degree?: string
-      major?: string
-      institution?: string
-      graduationYear?: string
-    }>
-    experience?: Array<{
-      company?: string
-      role?: string
-      duration?: string
-      industry?: string
-    }>
-    skills?: {
-      hard?: string[]
-      soft?: string[]
-      technical?: string[]
-      business?: string[]
-    }
-    tools?: string[]
-    certifications?: string[]
-    languages?: string[]
-    projects?: Array<{
-      name?: string
-      description?: string
-      tools?: string[]
-      industry?: string
-    }>
-    industries?: string[]
-    interests?: string[]
-    achievements?: string[]
-  }
-  signals?: Partial<Record<string, number | string[] | string>>
-  evidence?: string[]
-}
-
 const prompt = `
 Ban la CV parsing engine cho Skill-Up Navigator.
 Nhiem vu duy nhat: doc CV va tra ve JSON co cau truc de engine deterministic tinh career.
 Khong duoc de xuat nghe. Khong duoc tu quyet dinh career.
 Khong duoc bia du an, thanh tich, bang cap hoac kinh nghiem.
+
+CHI DUOC TRICH XUAT THONG TIN CO TRONG CV.
+NEU MOT KY NANG KHONG CO TRONG CV, KHONG DUOC THEM VAO OUTPUT.
 
 Tra ve JSON thuan, khong markdown, theo schema:
 {
@@ -170,29 +133,10 @@ Tra ve JSON thuan, khong markdown, theo schema:
     "interests": ["linh vuc quan tam co bang chung trong CV"],
     "achievements": ["thanh tich, KPI, giai thuong, ket qua dinh luong"]
   },
-  "signals": {
-    "interests": ["3-8 linh vuc quan tam"],
-    "strengths": ["3-8 diem manh"],
-    "weaknesses": ["1-5 diem can bo sung neu co bang chung"],
-    "values": ["impact" | "income" | "stability" | "autonomy" | "recognition" | "learning" | "creativity" | "service"],
-    "learningPreferences": ["course" | "project" | "mentor" | "selfTaught" | "credential" | "research"],
-    "personality": ["structured" | "exploratory" | "social" | "independent" | "practical" | "strategic"],
-    "remoteWorkPreference": 0-100,
-    "travelPreference": 0-100,
-    "incomeExpectation": 0-100,
-    "workLifeBalancePreference": 0-100,
-    "entrepreneurialTendency": 0-100,
-    "stressTolerance": 0-100,
-    "attentionToDetail": 0-100,
-    "systemsThinking": 0-100,
-    "timeManagement": 0-100,
-    "purposeOrientation": 0-100,
-    "geographicFlexibility": 0-100
-  },
   "evidence": ["3-5 bang chung ngan tu CV"]
 }
 
-Mapping goi y:
+Mapping dimensions:
 - logic: bai toan, lap luan, ky thuat, dinh luong.
 - analyticalThinking: phan tich du lieu, nghien cuu, root cause, tai chinh, quy trinh.
 - communication: viet, thuyet trinh, teaching, client, stakeholder, ngon ngu.
@@ -207,11 +151,11 @@ Mapping goi y:
 - motivation: consistency, achievement, long-term effort, initiative.
 
 Nguyen tac:
+- CHI TRICH XUAT THONG TIN CO TRONG CV.
+- Khong duoc them cong cu, bang cap, cong ty, chung chi, du an neu CV khong co bang chung.
 - Neu thieu du lieu, suy luan than trong tu bang chung trong CV.
 - Score phai la so nguyen 0-100.
-- evidence phai dua tren noi dung CV.
-- structuredEvidence phai tach ro skill, tool, industry, project, education va experience. Khong dua generic personality vao day.
-- Khong duoc them cong cu, bang cap, cong ty, chung chi, du an neu CV khong co bang chung.
+- structuredEvidence phai tach ro skill, tool, industry, project, education va experience.
 - Neu khong ro mot truong, dung chuoi rong hoac mang rong thay vi bia.
 `
 
@@ -221,27 +165,6 @@ const allowedMimeTypes = new Set([
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ])
-
-const clampScore = (value: unknown, fallback: number) => {
-  if (typeof value !== 'number' || Number.isNaN(value)) return fallback
-  return Math.max(0, Math.min(100, Math.round(value)))
-}
-
-const cleanText = (value: unknown) =>
-  typeof value === 'string' ? value.normalize('NFC').replace(/\s+/g, ' ').trim() : ''
-
-const cleanList = (value: unknown, limit = 12) => {
-  if (!Array.isArray(value)) return []
-
-  return Array.from(
-    new Set(
-      value
-        .map(cleanText)
-        .filter((item) => item.length > 0)
-        .map((item) => item.slice(0, 120)),
-    ),
-  ).slice(0, limit)
-}
 
 const getRequestBody = (request: VercelRequest) => {
   if (typeof request.body === 'string') {
@@ -255,123 +178,12 @@ const getRequestBody = (request: VercelRequest) => {
   return {}
 }
 
-const extractJson = (text: string) => {
-  const cleaned = text
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```$/i, '')
-    .trim()
-  const start = cleaned.indexOf('{')
-  const end = cleaned.lastIndexOf('}')
-
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('Gemini did not return JSON.')
-  }
-
-  return JSON.parse(cleaned.slice(start, end + 1)) as ParsedProfile
-}
-
-const normalizeProfile = (input: ParsedProfile) => {
-  const current = input.dimensions ?? {}
-  const signals = input.signals ?? {}
-  const signalScore = (name: string, fallback: number) => clampScore(signals[name], fallback)
-  const dimensions = {
-    logic: clampScore(current.logic, 60),
-    analyticalThinking: clampScore(current.analyticalThinking, signalScore('systemsThinking', 60)),
-    communication: clampScore(current.communication, 60),
-    leadership: clampScore(current.leadership, 55),
-    adaptability: clampScore(current.adaptability, signalScore('geographicFlexibility', 60)),
-    creativity: clampScore(current.creativity, 55),
-    technicalAffinity: clampScore(current.technicalAffinity, 55),
-    collaboration: clampScore(current.collaboration, 60),
-    learningAgility: clampScore(current.learningAgility, 60),
-    decisionMaking: clampScore(current.decisionMaking, signalScore('timeManagement', 55)),
-    riskTolerance: clampScore(current.riskTolerance, signalScore('entrepreneurialTendency', 50)),
-    motivation: clampScore(current.motivation, signalScore('purposeOrientation', 60)),
-  }
-
-  const allowedStyles = new Set([
-    'structured',
-    'ambiguous',
-    'peopleFirst',
-    'deepWork',
-    'builder',
-    'advisor',
-  ])
-  const workStyles = (input.preferences?.workStyles ?? [])
-    .filter((style): style is string => typeof style === 'string')
-    .filter((style) => allowedStyles.has(style))
-    .slice(0, 3)
-  const evidenceInput = input.structuredEvidence ?? {}
-  const normalizedEvidence = {
-    education: Array.isArray(evidenceInput.education)
-      ? evidenceInput.education
-          .map((item) => ({
-            degree: cleanText(item.degree),
-            major: cleanText(item.major),
-            institution: cleanText(item.institution),
-            graduationYear: cleanText(item.graduationYear),
-          }))
-          .filter((item) => item.degree || item.major || item.institution)
-          .slice(0, 6)
-      : [],
-    experience: Array.isArray(evidenceInput.experience)
-      ? evidenceInput.experience
-          .map((item) => ({
-            company: cleanText(item.company),
-            role: cleanText(item.role),
-            duration: cleanText(item.duration),
-            industry: cleanText(item.industry),
-          }))
-          .filter((item) => item.company || item.role || item.industry)
-          .slice(0, 10)
-      : [],
-    skills: {
-      hard: cleanList(evidenceInput.skills?.hard, 16),
-      soft: cleanList(evidenceInput.skills?.soft, 12),
-      technical: cleanList(evidenceInput.skills?.technical, 16),
-      business: cleanList(evidenceInput.skills?.business, 16),
-    },
-    tools: cleanList(evidenceInput.tools, 20),
-    certifications: cleanList(evidenceInput.certifications, 12),
-    languages: cleanList(evidenceInput.languages, 8),
-    projects: Array.isArray(evidenceInput.projects)
-      ? evidenceInput.projects
-          .map((item) => ({
-            name: cleanText(item.name),
-            description: cleanText(item.description),
-            tools: cleanList(item.tools, 8),
-            industry: cleanText(item.industry),
-          }))
-          .filter((item) => item.name || item.description)
-          .slice(0, 8)
-      : [],
-    industries: cleanList(evidenceInput.industries, 12),
-    interests: cleanList(evidenceInput.interests ?? signals.interests, 10),
-    achievements: cleanList(evidenceInput.achievements, 10),
-  }
-
-  return {
-    name: typeof input.name === 'string' && input.name.trim() ? input.name.trim() : 'Nguoi dung',
-    headline:
-      typeof input.headline === 'string' && input.headline.trim()
-        ? input.headline.trim()
-        : 'Ho so duoc trich xuat tu CV',
-    dimensions,
-    preferences: {
-      workStyles: workStyles.length > 0 ? workStyles : ['structured', 'deepWork'],
-    },
-    evidence: Array.isArray(input.evidence)
-      ? input.evidence.filter((item) => typeof item === 'string' && item.trim()).slice(0, 5)
-      : [],
-    structuredEvidence: normalizedEvidence,
-  }
-}
-
-const sendError = (response: VercelResponse, status: number, error: string) =>
-  response.status(status).json({ error })
-
-const callGemini = async (modelName: string, apiKey: string, parts: GeminiPart[]) => {
+const callGemini = async (
+  modelName: string,
+  apiKey: string,
+  parts: GeminiPart[],
+  signal: AbortSignal
+) => {
   const model = normalizeModelName(modelName)
   const geminiResponse = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -387,7 +199,8 @@ const callGemini = async (modelName: string, apiKey: string, parts: GeminiPart[]
           temperature: 0.1,
         },
       }),
-    },
+      signal,
+    }
   )
 
   return {
@@ -399,88 +212,132 @@ const callGemini = async (modelName: string, apiKey: string, parts: GeminiPart[]
 }
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
-  try {
-    if (request.method !== 'POST') {
-      response.setHeader('Allow', 'POST')
-      return sendError(response, 405, 'Method not allowed.')
-    }
-
-    const apiKey = getEnv('GOOGLE_API_KEY')
-    if (!apiKey || apiKey.includes('your_google')) {
-      return sendError(
-        response,
-        500,
-        'Missing GOOGLE_API_KEY. Add it to .env.local or Vercel Environment Variables.',
-      )
-    }
-
-    const body = getRequestBody(request)
-    const fileName = body.fileName
-    const mimeType = body.mimeType
-    const data = body.data
-
-    if (typeof data !== 'string' || typeof mimeType !== 'string') {
-      return sendError(response, 400, 'Missing file data.')
-    }
-
-    if (!allowedMimeTypes.has(mimeType)) {
-      return sendError(response, 400, 'Unsupported file type. Please upload PDF, DOC, DOCX or TXT.')
-    }
-
-    const byteLength = Buffer.byteLength(data, 'base64')
-    if (byteLength > MAX_FILE_BYTES) {
-      return sendError(response, 413, 'File is too large. Maximum size is 4MB.')
-    }
-
-    const parts: GeminiPart[] = [
-      { text: prompt },
-      {
-        text: `File name: ${typeof fileName === 'string' ? fileName : 'uploaded-cv'}`,
-      },
-      {
-        inline_data: {
-          mime_type: mimeType,
-          data,
-        },
-      },
-    ]
-
-    const models = Array.from(new Set([MODEL, ...FALLBACK_MODELS]))
-    let geminiResult = await callGemini(models[0], apiKey, parts)
-
-    for (const model of models.slice(1)) {
-      if (geminiResult.ok || ![404, 429, 503].includes(geminiResult.status)) break
-      geminiResult = await callGemini(model, apiKey, parts)
-    }
-
-    const rawResult = geminiResult.rawResult
-    let result: GeminiResponse
-
-    try {
-      result = JSON.parse(rawResult) as GeminiResponse
-    } catch {
-      return sendError(
-        response,
-        geminiResult.ok ? 500 : geminiResult.status,
-        `Gemini returned non-JSON response from ${geminiResult.model}: ${rawResult.slice(0, 240)}`,
-      )
-    }
-
-    if (!geminiResult.ok) {
-      return sendError(
-        response,
-        geminiResult.status,
-        `${result.error?.message ?? 'Gemini request failed.'} Model used: ${geminiResult.model}.`,
-      )
-    }
-
-    const text =
-      result.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? ''
-    const parsed = normalizeProfile(extractJson(text))
-
-    return response.status(200).json({ profile: parsed, model: geminiResult.model })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown API error.'
-    return sendError(response, 500, message)
+  if (request.method !== 'POST') {
+    response.setHeader('Allow', 'POST')
+    return response.status(405).json({ error: 'Method not allowed.' })
   }
+
+  const apiKey = getEnv('GOOGLE_API_KEY')
+  if (!apiKey || apiKey.includes('your_google')) {
+    return response.status(500).json({
+      error: 'Missing GOOGLE_API_KEY. Add it to .env.local or Vercel Environment Variables.',
+    })
+  }
+
+  const body = getRequestBody(request)
+  const fileName = body.fileName
+  const mimeType = body.mimeType
+  const data = body.data
+
+  if (typeof data !== 'string' || typeof mimeType !== 'string') {
+    return response.status(400).json({ error: 'Missing file data.' })
+  }
+
+  if (!allowedMimeTypes.has(mimeType)) {
+    return response
+      .status(400)
+      .json({ error: 'Unsupported file type. Please upload PDF, DOC, DOCX or TXT.' })
+  }
+
+  const byteLength = Buffer.byteLength(data, 'base64')
+  if (byteLength > MAX_FILE_BYTES) {
+    return response.status(413).json({ error: 'File is too large. Maximum size is 4MB.' })
+  }
+
+  const parts: GeminiPart[] = [
+    { text: prompt },
+    {
+      text: `File name: ${typeof fileName === 'string' ? fileName : 'uploaded-cv'}`,
+    },
+    {
+      inline_data: {
+        mime_type: mimeType,
+        data,
+      },
+    },
+  ]
+
+  const models = Array.from(new Set([MODEL, ...FALLBACK_MODELS]))
+
+  const result = await withRetry(
+    async (signal) => {
+      for (const model of models) {
+        try {
+          const geminiResult = await callGemini(model, apiKey, parts, signal)
+
+          if (!geminiResult.ok) {
+            if (geminiResult.status === 404 || geminiResult.status === 503) {
+              continue
+            }
+
+            let geminiError: GeminiResponse
+            try {
+              geminiError = JSON.parse(geminiResult.rawResult) as GeminiResponse
+            } catch {
+              throw new Error(`Gemini error ${geminiResult.status}: ${geminiResult.rawResult.slice(0, 200)}`)
+            }
+
+            throw new Error(
+              geminiError.error?.message ?? `Gemini request failed with status ${geminiResult.status}`
+            )
+          }
+
+          let geminiResponse: GeminiResponse
+          try {
+            geminiResponse = JSON.parse(geminiResult.rawResult) as GeminiResponse
+          } catch {
+            throw new Error('Gemini returned non-JSON response')
+          }
+
+          const text =
+            geminiResponse.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? ''
+
+          if (!text.trim()) {
+            throw new Error('Gemini returned empty response')
+          }
+
+          return { text, model: geminiResult.model }
+        } catch (error) {
+          if (model === models[models.length - 1]) {
+            throw error
+          }
+          continue
+        }
+      }
+
+      throw new Error('All models failed')
+    },
+    {
+      maxRetries: 2,
+      timeoutMs: TIMEOUT_MS,
+      baseDelayMs: 1500,
+    }
+  )
+
+  if (!result.success) {
+    const errorResponse = createApiErrorResponse(result.error)
+    return response.status(errorResponse.status).json(errorResponse.body)
+  }
+
+  const cvTextBuffer = Buffer.from(data, 'base64')
+  const cvText = cvTextBuffer.toString('utf-8').slice(0, 50000)
+  const parseResult = parseCvResponse(result.data.text, cvText)
+
+  if (!parseResult.success) {
+    return response.status(500).json({
+      error: parseResult.error,
+      warnings: parseResult.warnings,
+    })
+  }
+
+  const warningMessages = parseResult.warnings
+    .filter((w) => w.severity === 'high')
+    .map((w) => w.message)
+
+  return response.status(200).json({
+    profile: parseResult.profile,
+    signals: parseResult.signals,
+    model: result.data.model,
+    warnings: warningMessages.length > 0 ? warningMessages : undefined,
+  })
 }
